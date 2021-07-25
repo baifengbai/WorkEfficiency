@@ -1,4 +1,6 @@
-pdf2img/img/*
+pdf2img/img/*.jpg
+pdf2img/img/*.png
+pdf2img/img/*.jpeg
 pdf2img/*.jpg
 pdf2img/*.pdf
 .idea
