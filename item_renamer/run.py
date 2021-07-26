@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--type',default='folder')
     args = parser.parse_args()
-
+    print('选择模式：'+args.type)
     root_path = input('输入需要重命名的文件夹：')
     item_list,item_name_list = gen_item_list(root_path=root_path,type=args.type)
     # print(item_name_list)
