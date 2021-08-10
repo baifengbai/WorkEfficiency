@@ -24,6 +24,6 @@ def filetype_correct(path):
                 print(f"successfully renamed {f} to {'.'.join([fname, true_ext])}. ")
 
 
-if __name__ == '__main__':
+def run():
     path = input("输入需要处理的文件夹：")
     filetype_correct(path)

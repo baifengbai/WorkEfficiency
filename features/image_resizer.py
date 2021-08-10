@@ -2,7 +2,7 @@
 # @Time    : 7/13/2021 7:28 PM
 # @Author  : Chris.Wang
 # @Site    : 
-# @File    : run.py.py
+# @File    : image_resizer.py.py
 # @Software: PyCharm
 # @Description:
 
@@ -102,9 +102,9 @@ def prepare_path(root_path):
             resized.save(result_file_path, quality=100)
 
 
-if __name__ == '__main__':
-    root_path = input('请输入需要处理的文件夹：')
-    root_path = root_path.rstrip('\\')
+def run():
+    root_path = input('请输入需要处理的文件夹：').strip('\"')
+    root_path = root_path.rstrip('\\').rstrip('/')
     # 开始处理
     print('开始处理图片...')
     prepare_path(root_path=root_path)

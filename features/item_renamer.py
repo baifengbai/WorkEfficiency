@@ -39,13 +39,24 @@ def rename_item_name(root_path:str, task:list):
         print('failed renaming.')
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--type',default='folder')
-    args = parser.parse_args()
-    print('选择模式：'+args.type)
+def run():
+    arg_mode = False
+    if arg_mode:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--type',default='folder')
+        args = parser.parse_args()
+        print('选择模式：'+args.type)
+        type = args.type
+    else:
+        available_type:set = {'folder','file'}
+        while True:
+            type = input("选择类型(folder or file)： ") or 'folder'
+            if type in available_type:
+                break
+            else:
+                print("不支持的类型")
     root_path = input('输入需要重命名的文件夹：')
-    item_list,item_name_list = gen_item_list(root_path=root_path,type=args.type)
+    item_list,item_name_list = gen_item_list(root_path=root_path,type=type)
     # print(item_name_list)
     with open(os.path.join(root_path,'rename.csv'),'w',encoding='UTF-8',newline='') as f:
         writer = csv.writer(f)

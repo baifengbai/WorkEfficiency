@@ -5,5 +5,5 @@ pdf2img/*.jpg
 pdf2img/*.pdf
 .idea
 *.jpg
-A_plus_image_generator/example_folder/*
+resources/example_folder/*
 *.rar
