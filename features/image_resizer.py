@@ -96,11 +96,13 @@ def prepare_path(root_path):
         os.mkdir(path=str(r))
 
     for file in full_file_stack:
-        with Image.open(file[0]) as im:
-            resized = resize(im=im, size=file[1], fillcolor=(255, 255, 255))
-            result_file_path = file[0].replace(root_path, result_path)
-            resized.save(result_file_path, quality=100)
-
+        try:
+            with Image.open(file[0]) as im:
+                resized = resize(im=im, size=file[1], fillcolor=(255, 255, 255))
+                result_file_path = file[0].replace(root_path, result_path)
+                resized.save(result_file_path, quality=100)
+        except:
+            pass
 
 def run():
     root_path = input('请输入需要处理的文件夹：').strip('\"')
