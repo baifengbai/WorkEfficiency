@@ -48,7 +48,7 @@ def show_features():
         print(f"({features_description[k].splitlines()[0]})")
 
 
-@register_feature(description=""""用来修改A+图片尺寸的
+@register_feature(description="""用来修改A+图片尺寸的
 """)
 def image_resizer():
     from features.image_resizer import run
@@ -65,7 +65,7 @@ def filetype_corrector():
 @register_feature(description="""用来批量重命名文件的
 """)
 def item_renamer():
-    from features.image_resizer import run
+    from features.item_renamer import run
     run()
 
 
