@@ -7,3 +7,4 @@ pdf2img/*.pdf
 *.jpg
 resource/example_folder/*
 *.rar
+*.pyc

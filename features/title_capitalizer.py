@@ -59,11 +59,10 @@ def run():
         content.append(line)
     s = '\n'.join(content)
     s = s.replace(b'\xc2\xa0'.decode('utf-8'),' ')
-    print('输出结果：\n')
+    print('输出结果：')
     result = capitalize(s,lang=lang)
     print(result)
 
     pyperclip.copy(result)
-    print('内容已复制到剪切板。')
-
-run()
+    print('\n')
+    print('内容已复制到剪切板，程序结束。')

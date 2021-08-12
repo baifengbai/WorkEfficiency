@@ -70,7 +70,7 @@ def item_renamer():
 
 @register_feature(description="""用来处理标题大写的
 """)
-def title_capitalize():
+def title_capitalizer():
     from features.title_capitalizer import run
     run()
 
