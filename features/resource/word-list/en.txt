@@ -1,0 +1,13 @@
+with
+at
+and
+for
+by
+in
+on
+under
+before
+upper
+after
+x
+cm

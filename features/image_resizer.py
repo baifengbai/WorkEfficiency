@@ -28,28 +28,37 @@ def resize(im: JpegImageFile, size: tuple, fillcolor: tuple) -> JpegImageFile:
         append_width_l = int((width - resize_width) / 2)
         append_width_r = width - resize_width - append_width_l
         # left, top, right, bottom = _border(border)
-        im_dest = ImageOps.expand(source_resized, border=(append_width_l, 0,append_width_r,0), fill=fillcolor)
+        im_dest = ImageOps.expand(
+            source_resized,
+            border=(append_width_l, 0, append_width_r, 0),
+            fill=fillcolor)
     else:
         # 原图宽度为最大限制
         resize_width, resize_height = width, int(width * im_ratio)
         source_resized = im.resize((resize_width, resize_height))
         append_height_t = int((height - resize_height) / 2)
         append_height_b = height - resize_height - append_height_t
-        im_dest = ImageOps.expand(source_resized, border=(0,append_height_t,0, append_height_b), fill=fillcolor)
+        im_dest = ImageOps.expand(
+            source_resized,
+            border=(0, append_height_t, 0, append_height_b),
+            fill=fillcolor)
 
     return im_dest
 
 
 # 路径规划函数
 def prepare_path(root_path):
+    # append_orignal = root_path.rstrip('\\').rstrip('/') + "-original"
     root_folder = os.path.basename(os.path.normpath(root_path))
     result_path = os.path.join(root_path, root_folder + '-result')
 
-    def iter_folder(folder_path: str,
-                    full_folder_stack=None,
-                    full_file_stack=None,
-                    root_flag=False,
-                    size: tuple = None) -> (list, list):
+    def iter_folder(
+            folder_path: str,
+            full_folder_stack=None,
+            full_file_stack=None,
+            root_flag=False,
+            size: tuple = None
+    ) -> (list, list):
         if full_file_stack is None:
             full_file_stack = []
         if full_folder_stack is None:
@@ -73,7 +82,8 @@ def prepare_path(root_path):
                         print(f'文件夹尺寸格式错误: {i}，将跳过。')
                         continue
                 full_folder_stack.append(subpath)
-                full_folder_stack, full_file_stack = iter_folder(subpath, full_folder_stack, full_file_stack, size=size)
+                full_folder_stack, full_file_stack = iter_folder(
+                    subpath, full_folder_stack, full_file_stack, size=size)
             else:
                 if root_flag:
                     pass
@@ -85,12 +95,16 @@ def prepare_path(root_path):
                         exit("can't normally identify height and width. ")
         return full_folder_stack, full_file_stack
 
-    full_folder_stack, full_file_stack = iter_folder(folder_path=root_path,
-                                                     root_flag=True, size=None)
+    full_folder_stack, full_file_stack = iter_folder(
+        folder_path=root_path,
+        root_flag=True,
+        size=None)
     if os.path.exists(result_path):
         shutil.rmtree(result_path)
     os.mkdir(result_path)
-    result_folder_stack = [(lambda x: x.replace(root_path, result_path))(folder) for folder in full_folder_stack]
+    result_folder_stack = [(
+                               lambda x: x.replace(root_path, result_path)
+                           )(folder) for folder in full_folder_stack]
     # make result path
     for r in result_folder_stack:
         os.mkdir(path=str(r))
@@ -103,6 +117,7 @@ def prepare_path(root_path):
                 resized.save(result_file_path, quality=100)
         except:
             pass
+
 
 def run():
     root_path = input('请输入需要处理的文件夹：').strip('\"')

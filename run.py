@@ -68,6 +68,12 @@ def item_renamer():
     from features.item_renamer import run
     run()
 
+@register_feature(description="""用来处理标题大写的
+""")
+def title_capitalize():
+    from features.title_capitalizer import run
+    run()
+
 
 if __name__ == '__main__':
     try:
