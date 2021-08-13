@@ -4,7 +4,7 @@
 # @Site    : 
 # @File    : title_capitalizer.py
 # @Software: PyCharm
-# @Description:
+# @Description: 用来处理标题大写
 import re
 from os.path import join
 from features.resource.function import projpath
