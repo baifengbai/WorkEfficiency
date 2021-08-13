@@ -55,7 +55,7 @@ def run():
                 break
             else:
                 print("不支持的类型")
-    root_path = input('输入需要重命名的文件夹：')
+    root_path = input('输入需要重命名的文件夹：').strip()
     item_list,item_name_list = gen_item_list(root_path=root_path,type=type)
     # print(item_name_list)
     with open(os.path.join(root_path,'rename.csv'),'w',encoding='UTF-8',newline='') as f:

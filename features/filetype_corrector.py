@@ -25,5 +25,5 @@ def filetype_correct(path):
 
 
 def run():
-    path = input("输入需要处理的文件夹：")
+    path = input("输入需要处理的文件夹：").strip('\"').strip()
     filetype_correct(path)

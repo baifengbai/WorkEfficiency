@@ -120,7 +120,7 @@ def prepare_path(root_path):
 
 
 def run():
-    root_path = input('请输入需要处理的文件夹：').strip('\"')
+    root_path = input('请输入需要处理的文件夹：').strip('\"').strip()
     root_path = root_path.rstrip('\\').rstrip('/')
     # 开始处理
     print('开始处理图片...')
