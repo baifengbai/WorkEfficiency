@@ -68,7 +68,7 @@ def item_renamer():
     from features.item_renamer import run
     run()
 
-@register_feature(description="""用来处理标题大写的
+@register_feature(description="""用来处理标题大写的（beta）
 """)
 def title_capitalizer():
     from features.title_capitalizer import run

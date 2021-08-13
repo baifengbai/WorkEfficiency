@@ -6,6 +6,8 @@
 # @Software: PyCharm
 # @Description:
 import re
+from os.path import join
+from features.resource.function import projpath
 import pyperclip
 
 available_lang = ['en', 'es','fr','de','it']
@@ -14,7 +16,11 @@ def capitalize(s,lang='en'):
     if lang not in available_lang:
         exit('unsupported language. ')
 
-    with open(f'resource/word-list/{lang}.txt','r',encoding='UTF-8') as ignore_file:
+    with open(
+            join(projpath(),'features','resource','word-list',f'{lang}.txt'),
+            mode='r',
+            encoding='UTF-8'
+    ) as ignore_file:
         ignore_list = ignore_file.read().splitlines()
 
     sentence_group = s.split('\n')
@@ -29,7 +35,9 @@ def capitalize(s,lang='en'):
                 raw_s = word_list[i][j]
             if j == 0:
                 continue
-            if raw_s.lower().startswith('d\''):
+            if raw_s.lower() in ignore_list and "\'" in raw_s:
+                continue
+            if raw_s.isupper():
                 continue
             if raw_s.lower() not in ignore_list:
                 # print(f"{word_list[i][j]} to {word_list[i][j].capitalize()}")
@@ -45,7 +53,7 @@ def capitalize(s,lang='en'):
 
 def run():
     content = []
-    lang = input('选择目标语言(en/fr/de/es/it)：')
+    lang = input('输入目标语言缩写(en/fr/de/es/it)：')
     if lang not in available_lang:
         exit(f'unsupported language: {lang}. ')
 
