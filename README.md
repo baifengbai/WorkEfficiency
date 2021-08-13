@@ -8,7 +8,7 @@
 配置环境
 
 ```shell
-pip install filetype pillow -i https://mirrors.aliyun.com/pypi/simple/
+pip install filetype pillow pyperclip -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
 在程序目录下运行程序:
