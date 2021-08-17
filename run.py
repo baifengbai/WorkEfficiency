@@ -2,13 +2,12 @@
 # @Time    : 8/10/2021 5:09 PM
 # @Author  : Chris.Wang
 # @Site    : 
-# @File    : run.py.py
+# @File    : pdf_to_img.py
 # @Software: PyCharm
 # @Description:
 
 
 import traceback
-import os
 
 features = {}
 features_id = {}
@@ -72,6 +71,11 @@ def item_renamer():
 """)
 def title_capitalizer():
     from features.title_capitalizer import run
+    run()
+
+@register_feature()
+def pdf2img():
+    from features.pdf_to_img import run
     run()
 
 

@@ -14,5 +14,5 @@ pip install filetype pillow pyperclip -i https://mirrors.aliyun.com/pypi/simple/
 在程序目录下运行程序:
 
 ```shell
-python run.py
+python pdf_to_img.py
 ```
