@@ -1,4 +1,5 @@
 import os
+import shutil
 import typing
 
 from openpyxl import load_workbook
@@ -98,7 +99,7 @@ def pdf_save2img():
         n += 1
         print(f"finished {n} in {cot}.")
 
-
+# excel 添加条码
 def add_tag():
     save_fpath = input("请输入文件路径：").strip('\"')
     thumb_img_path = input('请输入图片文件夹：').strip('\"')
@@ -149,9 +150,9 @@ def add_tag():
 
     wb.save(save_fpath)
 
-
+# 验证fnsku与sku对应关系
 def verify_bar():
-    vfilepath = input('请输入验证表格文件路径：').strip('\"')
+    vfilepath = input('请输入验证表格文件路径：').strip('\"') # 必须含有sku和fnsku
     bardirpath = input('请输入条码文件夹路径：').strip('\"')
     vdf = pd.read_excel(vfilepath)
     vdf.columns = vdf.columns.str.lower()
@@ -184,8 +185,37 @@ def verify_bar():
     else:
         print('错误条码已标注，请修正。')
 
+#barcode renamer,文件名修改为条码数据
+def bar_info(mode='print'):
+    if mode not in ['print','rename']:
+        exit(f'模式不支持：{mode}')
+
+    path = input("输入识别文件夹路径：").strip('\"')
+    fl = os.listdir(path)
+    fl_tmp = []
+    for f in fl:
+        f_ = os.path.join(path,f)
+        if os.path.isfile(f_) and filetype.guess(f_).extension == 'pdf':
+            fl_tmp.append(f)
+    fl = fl_tmp.copy()
+    result_path = os.path.join(path, 'result')
+    if os.path.exists(result_path):
+        shutil.rmtree(result_path)
+    os.mkdir(result_path)
+    for f in fl:
+        f_name = os.path.join(path,f)
+        bc,s = _read_bartag(f_name)
+        name,ext = os.path.splitext(f)
+        first_code = bc[0]
+        if mode == 'rename':
+            print(first_code)
+            shutil.copyfile(f_name,os.path.join(result_path,first_code+ext))
+        elif mode == 'print':
+            print(first_code)
+
 
 if __name__ == '__main__':
     # add_tag()
     # read_pdf()
-    verify_bar()
+    # verify_bar()
+    bar_info(mode='rename')

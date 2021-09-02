@@ -60,11 +60,13 @@ def run():
     line = input('请输入文本，按 Ctrl-D 完成输入确认：\n')
     content.append(line)
     while True:
-        try:
-            line = input()
-        except EOFError:
+        line = input()
+        if line.endswith('\\\\'):
+            content.append(line.strip('\\\\'))
             break
-        content.append(line)
+        else:
+            content.append(line)
+
     s = '\n'.join(content)
     s = s.replace(b'\xc2\xa0'.decode('utf-8'),' ')
     print('输出结果：')
