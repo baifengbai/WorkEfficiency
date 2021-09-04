@@ -1,6 +1,3 @@
 from os.path import dirname
-from features.resource import anchor
-
-
 def projpath():
-    return dirname(dirname(dirname(anchor.__file__)))
+    return dirname(dirname(dirname(__file__)))

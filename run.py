@@ -73,9 +73,10 @@ def title_capitalizer():
     from features.title_capitalizer import run
     run()
 
-@register_feature()
-def pdf2img():
-    from features.pdf_to_img import run
+@register_feature(description="""本地图片转外链
+""")
+def localfile_to_url():
+    from features.qiniu_pic_host import run
     run()
 
 

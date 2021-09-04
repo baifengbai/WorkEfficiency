@@ -26,8 +26,8 @@ import filetype
 
 from typing import Any
 
-
-with open('./qiniu_auth.json','r',encoding='UTF-8') as f:
+current_path = os.path.dirname(__file__)
+with open(os.path.join(current_path,'qiniu_auth.json'),'r',encoding='UTF-8') as f:
     auth_info = json.load(f)
     if not auth_info:
         exit('load auth_info failed.')
