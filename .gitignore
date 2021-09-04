@@ -8,3 +8,4 @@ pdf2img/*.pdf
 resource/example_folder/*
 *.rar
 *.pyc
+.qiniu_pythonsdk_hostscache.json
