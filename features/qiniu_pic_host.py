@@ -9,7 +9,7 @@ import copy
 import json
 import os
 
-from typing import Any,List,AnyStr
+from typing import Any, List, AnyStr
 
 from datetime import datetime
 
@@ -22,7 +22,7 @@ import PIL.Image
 
 import pandas as pd
 import requests
-from qiniu import Auth, put_file, etag,build_batch_delete
+from qiniu import Auth, put_file, etag, build_batch_delete
 from qiniu import BucketManager
 
 import filetype
@@ -97,52 +97,44 @@ class QnObS():
 
     # localfile to url
     def localfile_to_url(self, root, fpath) -> (bool, str):
-        key = fpath.replace(root, '').lstrip('\\').lstrip('/').replace('\\','/')
+        key = fpath.replace(root, '').lstrip('\\').lstrip('/').replace('\\', '/')
         timestamp = datetime.strftime(datetime.now(), '%Y%m%d')
         key = '/'.join([timestamp, key])
         return self.update(key, localfile=fpath)
 
-    def list_keys(self,prefix='',limit=None):
+    def list_keys(self, prefix='', limit=None):
         bucket = BucketManager(self.q)
         delimiter = None
         marker = None
-        ret, eof, info = bucket.list(self.bucket_name,prefix,marker,limit,delimiter)
+        ret, eof, info = bucket.list(self.bucket_name, prefix, marker, limit, delimiter)
         filelist = [item['key'] for item in ret['items']]
         return filelist
 
-
-    def delete_by_keys(self,keys):
-        bucket = BucketManager(self.q)
-        ops = build_batch_delete(self.bucket_name,keys)
+    @staticmethod
+    def _del(bucket_inst, bucket_name, keys):
+        ops = build_batch_delete(bucket_name, keys)
         print('Will delete: ')
         for key in keys:
             print(key)
         desicion = input('Are you sure? Y or N.')
-        if desicion.lower() not in ['y','yes']:
+        if desicion.lower() not in ['y', 'yes']:
             exit('取消了操作')
-        ret, info = bucket.batch(ops)
-        print(f"{len(ret)} files were deleted.")
+        ret, info = bucket_inst.batch(ops)
+        okcount = [r['code'] for r in json.loads(info.text_body)].count(200)
+        print(f"{okcount} files were deleted.")
 
-    def delete_by_prefix(self,prefix):
+    def delete_by_keys(self, keys):
+        bucket = BucketManager(self.q)
+        self._del(bucket, self.bucket_name, keys)
+
+    def delete_by_prefix(self, prefix):
         bucket = BucketManager(self.q)
         limit = None
         delimiter = None
         marker = None
-        ret, eof, info = bucket.list(self.bucket_name,prefix,marker,limit,delimiter)
+        ret, eof, info = bucket.list(self.bucket_name, prefix, marker, limit, delimiter)
         delete_keys = [item['key'] for item in ret['items']]
-        ops = build_batch_delete(self.bucket_name,delete_keys)
-        print('Will delete: ')
-        for key in delete_keys:
-            print(key)
-        desicion = input('Are you sure? Y or N.')
-        if desicion.lower() not in ['y','yes']:
-            exit('取消了操作')
-        ret, info = bucket.batch(ops)
-        print(f"{len(ret)} files were deleted.")
-
-
-
-
+        self._del(bucket, self.bucket_name, delete_keys)
 
 
 # 根据文件目录生成文件路径列表，并且在文件夹内生成excel。
@@ -164,7 +156,7 @@ def localfile_to_excel(dirpath) -> str:
     for col in ws.columns:
         for cell in col:
             cell.font = Font(name="Calibri")
-            cell.alignment = Alignment(horizontal='left',wrapText=True)
+            cell.alignment = Alignment(horizontal='left', wrapText=True)
 
     for row in ws[1:2]:
         for cell in row:
@@ -174,8 +166,6 @@ def localfile_to_excel(dirpath) -> str:
 
     wb.save(excel_path)
     return excel_path
-
-
 
 
 # 直接对表格进行操作，生成url
@@ -224,30 +214,34 @@ def generate_url(excel_path):
         root = root_list[x].value
         result, url = qos.localfile_to_url(root=root, fpath=fpath)
         if result:
-            url_list[x].value = 'http://'+url
+            url_list[x].value = 'http://' + url
 
     wb.save(excel_path)
 
-def del_source(feed,mode='keys'):
-    opts = ['keys','prefix']
+
+def del_source(feed, mode='key'):
+    opts = ['key', 'keys', 'prefix']
     if mode not in opts:
         exit('del无法识别的模式')
     qos = QnObS(auth_info)
     qos.connect()
-    if (mode == 'keys') and (isinstance(feed,List)):
+    if (mode == 'key') and (isinstance(feed, str)):
+        qos.delete_by_keys([feed])
+    if (mode == 'keys') and (isinstance(feed, List)):
         qos.delete_by_keys(feed)
-    elif (mode == 'prefix') and (isinstance(feed,str)):
+    elif (mode == 'prefix') and (isinstance(feed, str)):
         qos.delete_by_prefix(feed)
 
-def list_files(prefix='',mode='dir'):
-    if mode not in ['dir','all']:
+
+def list_files(prefix='', mode='dir'):
+    if mode not in ['dir', 'all', 'group']:
         exit('list无法识别的模式')
     qos = QnObS(auth_info)
     qos.connect()
     filelist = qos.list_keys(prefix=prefix)
     sliced_filelist = [os.path.split(file) for file in filelist]
     tube = {}
-    for root,file in sliced_filelist:
+    for root, file in sliced_filelist:
         if root not in tube.keys():
             tube[root] = []
         tube[root].append(file)
@@ -258,9 +252,11 @@ def list_files(prefix='',mode='dir'):
         for key in set_root:
             print(key)
     elif mode == 'all':
-        for key,value in tube.items():
-            print(f"{key} : {value}")
-
+        for file in filelist:
+            print(file)
+    elif mode == 'group':
+        for key, value in tube.items():
+            print(f"{key}: {', '.join(value)}")
 
 
 def run():
@@ -274,15 +270,18 @@ def run():
         generate_url(excelpath)
 
     def del_mode():
-        mode = input("选择文件删除模式（keys, prefix）：")
-        if mode not in ['keys','prefix']:
+        mode = input("选择文件删除模式（key, keys, prefix）：")
+        if mode not in ['key', 'keys', 'prefix']:
             exit('无法识别的模式。')
         if mode == 'prefix':
             feed = input('输入文件前缀：')
-            del_source(feed,mode)
+            del_source(feed, mode)
+        elif mode == 'key':
+            feed = input('输入文件名：')
+            del_source(feed, mode)
         elif mode == 'keys':
             while True:
-                filepath = input("输入文件名表格路径：")
+                filepath = input("输入文件名表格路径：").strip('\"').strip('\\')
                 try:
                     df = pd.read_excel(filepath)
                     break
@@ -293,8 +292,8 @@ def run():
 
     def list_mode():
         prefix = input('请输入前缀（默认为空）：')
-        show_mode = input('选择显示模式，默认为dir（dir, all）：')
-        list_files(prefix,mode=show_mode)
+        show_mode = input('选择显示模式，默认为dir（dir, all, group）：')
+        list_files(prefix, mode=show_mode)
 
     mode_opts = {
         'bydir': path_mode,
@@ -302,7 +301,7 @@ def run():
         'del': del_mode,
         'list': list_mode
     }
-    mode = input('请选择模式（dir, excel, del, list）：')
+    mode = input(f'请选择模式 ({", ".join(mode_opts.keys())})：')
     if mode in mode_opts.keys():
         mode_opts[mode]()
     else:
