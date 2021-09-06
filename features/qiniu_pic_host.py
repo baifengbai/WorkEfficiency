@@ -8,6 +8,7 @@
 import copy
 import json
 import os
+import shutil
 
 from typing import Any, List, AnyStr
 
@@ -158,7 +159,7 @@ def localfile_to_excel(dirpath) -> str:
             cell.font = Font(name="Calibri")
             cell.alignment = Alignment(horizontal='left', wrapText=True)
 
-    for row in ws[1:2]:
+    for row in ws[1]:
         for cell in row:
             font1 = copy.copy(cell.font)
             font1.bold = True
@@ -169,9 +170,11 @@ def localfile_to_excel(dirpath) -> str:
 
 
 # 直接对表格进行操作，生成url
-def generate_url(excel_path):
+def generate_url(excel_path,update=True):
     qos = QnObS(auth_info)
     qos.connect()
+    root_path,_ = os.path.split(excel_path)
+
     wb = load_workbook(excel_path)
     ws = wb.active
     ws['A1'].value = 'img'
@@ -181,13 +184,38 @@ def generate_url(excel_path):
     for col in ws.iter_cols(1, ws.max_column):
         col_names[col[0].value] = get_column_letter(current)
         current += 1
-
+    temp_dir = os.path.join(root_path,'tempimg-'+datetime.strftime(datetime.now(),'%Y%m%d'))
+    if not os.path.exists(temp_dir):
+        os.mkdir(temp_dir)
     ws.column_dimensions[col_names['img']].width = 13  # img
     filelist = ws[col_names['filepath']]
+    filelist_forup = []
+    filelist_forup.append(filelist[0])
     lenfiles = len(filelist)
     blank_img = PIL.Image.new('RGB', (100, 100), color=(255, 255, 255))
     for x in range(1, lenfiles):
         fpath = filelist[x].value
+        if fpath.startswith('http'):
+            _,temp_name = os.path.split(fpath)
+            tempfpath = os.path.join(temp_dir,temp_name)
+            retry_count= 0
+            while True:
+                try:
+                    if os.path.exists(tempfpath):
+                        break
+                    response = requests.get(fpath)
+                    if response.status_code == 200:
+                        with open(tempfpath, 'wb') as tempf:
+                            tempf.write(response.content)
+                        print(f'Downloaded {temp_name} successfully.')
+                        break
+                except:
+                    retry_count += 1
+                    if retry_count >= 4:
+                        print(f'Download ERROR of {temp_name}.')
+                        break
+            fpath = tempfpath
+        filelist_forup.append(fpath)
         ws.row_dimensions[x + 1].height = 70
         if os.path.exists(fpath):
             img = Image(fpath)
@@ -205,17 +233,18 @@ def generate_url(excel_path):
         img.anchor = f'A{x + 1}'
         ws.add_image(img)
 
-    filepath_list = ws[col_names['filepath']]
-    root_list = ws[col_names['root']]
-    lenfp = len(filepath_list)
-    url_list = ws[col_names['url']]
-    for x in range(1, lenfp):
-        fpath = filepath_list[x].value
-        root = root_list[x].value
-        result, url = qos.localfile_to_url(root=root, fpath=fpath)
-        if result:
-            url_list[x].value = 'http://' + url
-
+    if update:
+        filepath_list = filelist_forup
+        root_list = ws[col_names['root']]
+        lenfp = len(filepath_list)
+        url_list = ws[col_names['url']]
+        for x in range(1, lenfp):
+            fpath = filepath_list[x]
+            root = root_list[x].value
+            result, url = qos.localfile_to_url(root=root, fpath=fpath)
+            if result:
+                url_list[x].value = 'http://' + url
+    # shutil.rmtree(temp_dir)
     wb.save(excel_path)
 
 
@@ -268,6 +297,9 @@ def run():
     def excel_mode():
         excelpath = input("输入表格路径：").rstrip('\\').strip('\"')
         generate_url(excelpath)
+    def excel_mode2():
+        excelpath = input("输入表格路径：").rstrip('\\').strip('\"')
+        generate_url(excelpath,update=False)
 
     def del_mode():
         mode = input("选择文件删除模式（key, keys, prefix）：")
@@ -296,8 +328,9 @@ def run():
         list_files(prefix, mode=show_mode)
 
     mode_opts = {
-        'bydir': path_mode,
-        'byexcel': excel_mode,
+        'bydir': path_mode, # add pic to sheet and update by dir
+        'byexcel': excel_mode, # add pic to sheet and update
+        'byexcel2':excel_mode2, # only add to sheet pic not update
         'del': del_mode,
         'list': list_mode
     }
