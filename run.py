@@ -79,6 +79,11 @@ def localfile_to_url():
     from features.qiniu_pic_host import run
     run()
 
+@register_feature(description="""条形码相关操作
+""")
+def barcodetag():
+    from features.barcode_analysis import run
+    run()
 
 if __name__ == '__main__':
     try:

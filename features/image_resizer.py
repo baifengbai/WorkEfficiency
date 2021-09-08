@@ -47,11 +47,16 @@ def resize(im: JpegImageFile, size: tuple, fillcolor: tuple) -> JpegImageFile:
 
 
 # 路径规划函数
-def prepare_path(root_path):
-    # append_orignal = root_path.rstrip('\\').rstrip('/') + "-original"
-    root_folder = os.path.basename(os.path.normpath(root_path))
-    result_path = os.path.join(root_path, root_folder + '-result')
-
+def prepare_path(temp_root_path):
+    original_root_path = temp_root_path
+    # parent_dirpath = os.path.dirname(root_path)
+    new_original = os.path.join(original_root_path,'original')
+    tmp_root_path = temp_root_path + '-tmp'
+    temp_root_path = tmp_root_path
+    os.renames(original_root_path, temp_root_path)
+    # root_folder = os.path.basename(os.path.normpath(root_path))
+    # result_path = os.path.join(root_path, root_folder + '-result')
+    # result_path = original_root_path
     def iter_folder(
             folder_path: str,
             full_folder_stack=None,
@@ -71,7 +76,7 @@ def prepare_path(root_path):
             subpath = os.path.join(folder_path, i)
             if os.path.isdir(subpath):
                 if root_flag:
-                    if i == root_folder + "-result":
+                    if i == "original":
                         continue
                     try:
                         s = i.split('x')
@@ -96,15 +101,16 @@ def prepare_path(root_path):
         return full_folder_stack, full_file_stack
 
     full_folder_stack, full_file_stack = iter_folder(
-        folder_path=root_path,
+        folder_path=temp_root_path,
         root_flag=True,
         size=None)
-    if os.path.exists(result_path):
-        shutil.rmtree(result_path)
-    os.mkdir(result_path)
+    # if os.path.exists(new_original):
+    #     shutil.rmtree(new_original)
+    os.mkdir(original_root_path)
     result_folder_stack = [(
-                               lambda x: x.replace(root_path, result_path)
-                           )(folder) for folder in full_folder_stack]
+                               lambda x: x.replace(temp_root_path, original_root_path)
+                           )(folder) for folder in full_folder_stack
+                           ]
     # make result path
     for r in result_folder_stack:
         os.mkdir(path=str(r))
@@ -113,16 +119,18 @@ def prepare_path(root_path):
         try:
             with Image.open(file[0]) as im:
                 resized = resize(im=im, size=file[1], fillcolor=(255, 255, 255))
-                result_file_path = file[0].replace(root_path, result_path)
+                result_file_path = file[0].replace(temp_root_path, original_root_path)
                 resized.save(result_file_path, quality=100)
         except:
             pass
 
+    # 重命名文件夹
+    os.renames(temp_root_path, new_original)
 
 def run():
     root_path = input('请输入需要处理的文件夹：').strip('\"').strip()
     root_path = root_path.rstrip('\\').rstrip('/')
     # 开始处理
     print('开始处理图片...')
-    prepare_path(root_path=root_path)
+    prepare_path(temp_root_path=root_path)
     print('处理完成。')

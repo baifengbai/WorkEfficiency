@@ -1,5 +1,6 @@
 import os
 import shutil
+import traceback
 import typing
 
 from openpyxl import load_workbook
@@ -8,12 +9,11 @@ from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 import filetype
 
-import tempfile
 import os
 
 from pdf2image import convert_from_path
 
-from PIL import Image
+import PIL.Image
 import pytesseract
 
 from pyzbar.pyzbar import decode
@@ -21,6 +21,44 @@ from pyzbar.pyzbar import decode
 import PyPDF2
 
 import pandas as pd
+
+features = {}
+features_id = {}
+features_description = {}
+
+
+def register_feature(description="暂无描述"):
+    def wrap(func):
+        if func.__name__ not in features.keys():
+            feature_name = func.__name__
+            features[feature_name] = func
+            features_description[feature_name] = description
+        return func
+
+    return wrap
+
+
+def run_feature(func):
+    print(f"运行功能：{func.__name__}")
+    return func()
+
+
+def show_description():
+    for n, (k, v) in enumerate(features.items()):
+        features_id[n] = k
+        print(f'{n}: {k}')
+        print(features_description[k])
+
+@register_feature(description="""用于显示所有的功能
+""")
+def show_features():
+    print('目前以下功能可用：')
+    for n, (k, v) in enumerate(features.items()):
+        features_id[n] = k
+        print(f'{n}: {k}', end=' ')
+        print(f"({features_description[k].splitlines()[0]})")
+
+# -------------------------------------------------------------------
 
 
 def _read_pdf():
@@ -32,8 +70,8 @@ def _read_pdf():
         pageObject = pdfReader.getPage(0)
         return pageObject.extractText()
 
-
-def _read_bartag(fpath):
+# 对图片进行分析，获得条码数据和文字数据
+def _read_bartag(fpath) -> (list,list):
     kind = filetype.guess(fpath)
     img = typing.Any
     if kind.extension == "pdf":
@@ -42,7 +80,7 @@ def _read_bartag(fpath):
             img = im
             break
     elif kind.extension in ['png', 'jpg', 'jpeg']:
-        img = Image.open(fpath)
+        img = PIL.Image.open(fpath)
     else:
         exit('Unsupported file type. ')
     detectedBarcodes = decode(img)
@@ -71,10 +109,11 @@ def _read_bartag(fpath):
         s1 = s1.replace('\n\n', '\n')
         if "\n\n" not in s1:
             break
-    ss = s1.splitlines()
-    return barcode_, ss
+    text = s1.splitlines()
+    return barcode_, text
 
-
+@register_feature(description="""将pdf保存为图片
+""")
 def pdf_save2img():
     f_path = input('请输入处理文件夹：').strip('\"')
     result_path = input('请输入结果保存位置：').strip('\"')
@@ -88,24 +127,30 @@ def pdf_save2img():
     cot = len(file_list)
     print(f'You have {cot} pdf file(s).')
     n = 0
-    for ff in file_list:
-        with tempfile.TemporaryDirectory() as path:
-            images_from_path = convert_from_path(os.path.join(f_path, ff), dpi=600, output_folder=path)
-
-            name, extension = os.path.splitext(ff)
-
+    for f in file_list:
+        images_from_path = convert_from_path(os.path.join(f_path, f), dpi=600)
+        name, extension = os.path.splitext(f)
         for im in images_from_path:
             im.save(os.path.join(result_path, name + ".jpg"))
         n += 1
         print(f"finished {n} in {cot}.")
 
 # excel 添加条码
-def add_tag():
+@register_feature(description="""为excel表格添加条码图片
+""")
+def tag_to_excel():
     save_fpath = input("请输入文件路径：").strip('\"')
-    thumb_img_path = input('请输入图片文件夹：').strip('\"')
+    resource_path = input('请输入素材文件夹(支持图片和单页pdf)：').strip('\"')
+    res_filelist = os.listdir(resource_path)
+    res_filelist_ = []
+    for res in res_filelist:
+        if os.path.isfile(os.path.join(resource_path,res)):
+            res_filelist_.append(os.path.join(resource_path,res))
+    res_filelist = res_filelist_.copy()
+    lenres = len(res_filelist)
     wb = load_workbook(save_fpath)
     ws = wb.active
-    # ws['A1'].value = "sku"
+    # ws['A1'].value = "code"
     # ws['A1'].alignment = Alignment(horizontal='center')
     # ws['A1'].font = Font(bold=True)
     # set font
@@ -114,7 +159,7 @@ def add_tag():
     col_names = {}
     current = 1
     for col in ws.iter_cols(1, ws.max_column):
-        col_names[col[0].value] = get_column_letter(current)
+        col_names[str(col[0].value).lower()] = get_column_letter(current)
         current += 1
 
     # 设定字体
@@ -132,27 +177,50 @@ def add_tag():
     ws.column_dimensions[col_names['tag']].width = col_width  # img
 
     # 添加图片
-    sku_list = ws[col_names['sku']]
-    lensku = len(sku_list)
-    for x in range(1, lensku):
-        sku = sku_list[x].value
-        if os.path.exists(os.path.join(thumb_img_path, sku + '.jpg')):
-            img = Image(os.path.join(thumb_img_path, sku + '.jpg'))
-        else:
-            continue
-        width = img.width
-        height = img.height
-        img.width = min(max(width * 0.45, col_width * 7), col_width * 7)
-        img.height = img.width / width * height
-        ws.row_dimensions[x + 1].height = col_width * height / width * 6
-        img.anchor = f'B{x + 1}'
-        ws.add_image(img)
+    code_list = ws[col_names['code']]
+    lencode = len(code_list)
 
+    def find_code_res(code_, filelist,lenfl):
+        for i in range(lenfl):
+            _, ext = os.path.splitext(filelist[i])
+            if (code_ in filelist[i]) and (ext.lower() in ['.jpeg','.jpg','.png','.gif','.webp','.pdf']):
+                return filelist[i]
+            else:
+                continue
+        return None
+
+    for x in range(1, lencode):
+        img = None
+        code = code_list[x].value
+        target = find_code_res(code,res_filelist,lenres)
+        if not target:
+            continue
+        else:
+            _,ext = os.path.splitext(target)
+            if ext.lower() == '.pdf':
+                images_from_path = convert_from_path(target, dpi=600)
+                for im in images_from_path:
+                    img = Image(im)
+                    break
+            elif ext.lower() in ['.jpeg','.jpg','.png','.gif','.webp']:
+                img = Image(target)
+            else:
+                continue
+            width = img.width
+            height = img.height
+            img.width = min(max(width * 0.45, col_width * 7), col_width * 7)
+            img.height = img.width / width * height
+            ws.row_dimensions[x + 1].height = col_width * height / width * 6
+            img.anchor = f'B{x + 1}'
+            print(f'添加图片：{code}')
+            ws.add_image(img)
     wb.save(save_fpath)
 
 # 验证fnsku与sku对应关系
-def verify_bar():
-    vfilepath = input('请输入验证表格文件路径：').strip('\"') # 必须含有sku和fnsku
+@register_feature(description="""验证两组code对应关系匹配
+""")
+def fba_verify_barcode():
+    vfilepath = input('请输入验证表格文件路径 (必须含有sku和fnsku) ：').strip('\"') # 必须含有sku和fnsku
     bardirpath = input('请输入条码文件夹路径：').strip('\"')
     vdf = pd.read_excel(vfilepath)
     vdf.columns = vdf.columns.str.lower()
@@ -185,23 +253,30 @@ def verify_bar():
     else:
         print('错误条码已标注，请修正。')
 
-#barcode renamer,文件名修改为条码数据
-def bar_info(mode='print'):
-    if mode not in ['print','rename']:
-        exit(f'模式不支持：{mode}')
+#barcode renamer,文件名修改为条码数据,for pdf and jpg
+@register_feature(description="""文件名修改为条码数据
+""")
+def read_barcode():
+    while True:
+        mode = input('选择模式(print or rename)：')
+        if mode not in ['print','rename']:
+            exit(f'模式不支持：{mode}')
+        else:
+            break
 
     path = input("输入识别文件夹路径：").strip('\"')
     fl = os.listdir(path)
     fl_tmp = []
     for f in fl:
         f_ = os.path.join(path,f)
-        if os.path.isfile(f_) and filetype.guess(f_).extension == 'pdf':
+        if os.path.isfile(f_) and filetype.guess(f_).extension in ['pdf','jpg','png']:
             fl_tmp.append(f)
     fl = fl_tmp.copy()
     result_path = os.path.join(path, 'result')
-    if os.path.exists(result_path):
-        shutil.rmtree(result_path)
-    os.mkdir(result_path)
+    if mode == 'rename':
+        if os.path.exists(result_path):
+            shutil.rmtree(result_path)
+        os.mkdir(result_path)
     for f in fl:
         f_name = os.path.join(path,f)
         bc,s = _read_bartag(f_name)
@@ -213,9 +288,19 @@ def bar_info(mode='print'):
         elif mode == 'print':
             print(first_code)
 
+def run():
+    try:
+        show_features()
+        opt = input("输入要运行的条码功能编号（输入help查看完整功能描述）：")
+        if opt == "help":
+            show_description()
+        elif opt.isalnum() and int(opt) < len(features):
+            run_feature(features[features_id[int(opt)]])
+        else:
+            print("无法识别此功能。")
+    except Exception as err:
+        print(err)
+        traceback.print_exc()
 
 if __name__ == '__main__':
-    # add_tag()
-    # read_pdf()
-    # verify_bar()
-    bar_info(mode='rename')
+    run()

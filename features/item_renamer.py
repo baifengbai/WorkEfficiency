@@ -58,14 +58,14 @@ def run():
     root_path = input('输入需要重命名的文件夹：').strip()
     item_list,item_name_list = gen_item_list(root_path=root_path,type=type)
     # print(item_name_list)
-    with open(os.path.join(root_path,'rename.csv'),'w',encoding='UTF-8',newline='') as f:
+    with open(os.path.join(root_path,'rename.csv'),'w',encoding='UTF-8-sig',newline='') as f:
         writer = csv.writer(f)
         for x in item_name_list:
             writer.writerow([x])
 
     p = input("请打开csv文件，添加新文件夹名，保存，然后回车")
 
-    with open(os.path.join(root_path,'rename.csv'),'r',encoding='UTF-8') as f:
+    with open(os.path.join(root_path,'rename.csv'),'r',encoding='UTF-8-sig') as f:
         rename_list = csv.reader(f)
         for l in rename_list:
             rename_item_name(root_path=root_path,task=l)
