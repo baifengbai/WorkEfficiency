@@ -75,7 +75,7 @@ def title_capitalizer():
 
 @register_feature(description="""本地图片转外链
 """)
-def localfile_to_url():
+def qiniu_pic_url():
     from features.qiniu_pic_host import run
     run()
 
