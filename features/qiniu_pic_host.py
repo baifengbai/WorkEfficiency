@@ -146,7 +146,7 @@ def localfile_to_excel(dirpath) -> str:
         for file in files:
             if filetype.guess_extension(os.path.join(root, file)) in ['png', 'jpg', 'gif']:
                 items.append((root, file))
-    df = pd.DataFrame([(dirpath, os.path.join(root, file)) for root, file in items], columns=['root', 'filepath'])
+    df = pd.DataFrame([(os.path.dirname(dirpath), os.path.join(root, file)) for root, file in items], columns=['root', 'filepath'])
     df['url'] = ''
     excel_path = os.path.join(dirpath, 'images.xlsx')
     df.to_excel(excel_path, engine='openpyxl')
@@ -159,11 +159,10 @@ def localfile_to_excel(dirpath) -> str:
             cell.font = Font(name="Calibri")
             cell.alignment = Alignment(horizontal='left', wrapText=True)
 
-    for row in ws[1]:
-        for cell in row:
-            font1 = copy.copy(cell.font)
-            font1.bold = True
-            cell.font = font1
+    for cell in ws[1]:
+        font1 = copy.copy(cell.font)
+        font1.bold = True
+        cell.font = font1
 
     wb.save(excel_path)
     return excel_path
