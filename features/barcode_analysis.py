@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import traceback
 import typing
 
@@ -61,7 +62,7 @@ def show_features():
 # -------------------------------------------------------------------
 
 
-def _read_pdf():
+def _read_text_pdf():
     fpath = input('请输入文件路径：').strip('\"')
     with open(fpath, 'rb') as fp:
         pdfFileObject = fp
@@ -69,6 +70,42 @@ def _read_pdf():
         print(" No. Of Pages: ", pdfReader.numPages)
         pageObject = pdfReader.getPage(0)
         return pageObject.extractText()
+
+def _decode_img(img: PIL.Image,barcode_mode=True,text_mode=True):
+    if barcode_mode:
+        detectedBarcodes = decode(img)
+        # If not detected then print the message
+        barcode_ = []
+        if not detectedBarcodes:
+            print("Barcode Not Detected or your barcode is blank/corrupted!")
+        else:
+            # Traveres through all the detected barcodes in image
+            for barcode in detectedBarcodes:
+
+                # # Locate the barcode position in image
+                # (x, y, w, h) = barcode.rect
+                #
+                # # Put the rectangle in image using
+                # # cv2 to heighlight the barcode
+                # cv2.rectangle(img, (x - 10, y - 10),
+                #               (x + w + 10, y + h + 10),
+                #               (255, 0, 0), 2)
+                if barcode.data != "":
+                    # Print the barcode data
+                    barcode_.append(barcode.data.decode('ascii'))
+                    # print(barcode.type)
+    else:
+        barcode_ = []
+    if text_mode:
+        s1 = pytesseract.image_to_string(img).strip()
+        while True:
+            s1 = s1.replace('\n\n', '\n')
+            if "\n\n" not in s1:
+                break
+        text = s1.splitlines()
+    else:
+        text = ''
+    return barcode_, text
 
 # 对图片进行分析，获得条码数据和文字数据
 def _read_bartag(fpath) -> (list,list):
@@ -83,34 +120,26 @@ def _read_bartag(fpath) -> (list,list):
         img = PIL.Image.open(fpath)
     else:
         exit('Unsupported file type. ')
-    detectedBarcodes = decode(img)
-    # If not detected then print the message
-    barcode_ = []
-    if not detectedBarcodes:
-        print("Barcode Not Detected or your barcode is blank/corrupted!")
-    else:
-        # Traveres through all the detected barcodes in image
-        for barcode in detectedBarcodes:
+    return _decode_img(img)
 
-            # # Locate the barcode position in image
-            # (x, y, w, h) = barcode.rect
-            #
-            # # Put the rectangle in image using
-            # # cv2 to heighlight the barcode
-            # cv2.rectangle(img, (x - 10, y - 10),
-            #               (x + w + 10, y + h + 10),
-            #               (255, 0, 0), 2)
-            if barcode.data != "":
-                # Print the barcode data
-                barcode_.append(barcode.data.decode('ascii'))
-                # print(barcode.type)
-    s1 = pytesseract.image_to_string(img).strip()
-    while True:
-        s1 = s1.replace('\n\n', '\n')
-        if "\n\n" not in s1:
-            break
-    text = s1.splitlines()
-    return barcode_, text
+def _splitter_(splitter: list, pdfReader: PyPDF2.PdfFileReader, fpath, pages_data=None):
+    root, fname = os.path.split(fpath)
+    count = 0
+    for spl in splitter:
+        count += 1
+        pdf_writer = PyPDF2.PdfFileWriter()
+        for i in range(spl[0], spl[1] + 1):
+            current_page = pdfReader.getPage(i)
+            pdf_writer.addPage(current_page)
+        if pages_data is None:
+            prefix = fname
+        else:
+            lenx = len(pages_data[spl[0]][0])
+            prefix = pages_data[spl[0]][0][lenx-1]
+        output_file = f"{prefix}-{count}-{spl[1] + 1 - spl[0]}-pages.pdf"
+        with open(os.path.join(root, output_file), 'wb') as outfp:
+            pdf_writer.write(outfp)
+        print(f'分割文件：{output_file}')
 
 @register_feature(description="""将pdf保存为图片
 """)
@@ -127,13 +156,18 @@ def pdf_save2img():
     cot = len(file_list)
     print(f'You have {cot} pdf file(s).')
     n = 0
+    temp_dir = os.path.join(f_path, 'temp-asgdafewa')
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    os.mkdir(temp_dir)
     for f in file_list:
-        images_from_path = convert_from_path(os.path.join(f_path, f), dpi=600)
+        images_from_path = convert_from_path(os.path.join(f_path, f),output_folder=temp_dir, dpi=600,thread_count=8)
         name, extension = os.path.splitext(f)
-        for im in images_from_path:
-            im.save(os.path.join(result_path, name + ".jpg"))
+        for i,im in enumerate(images_from_path):
+            im.save(os.path.join(result_path, name + f"-{i}.jpg"))
         n += 1
         print(f"finished {n} in {cot}.")
+    shutil.rmtree(temp_dir)
 
 # excel 添加条码
 @register_feature(description="""为excel表格添加条码图片
@@ -198,7 +232,11 @@ def tag_to_excel():
         else:
             _,ext = os.path.splitext(target)
             if ext.lower() == '.pdf':
-                images_from_path = convert_from_path(target, dpi=600)
+                temp_dir = os.path.join(resource_path,'temp-asgdafewa')
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                os.mkdir(temp_dir)
+                images_from_path = convert_from_path(target, dpi=600,output_folder=temp_dir,thread_count=8)
                 for im in images_from_path:
                     img = Image(im)
                     break
@@ -287,6 +325,72 @@ def read_barcode():
             shutil.copyfile(f_name,os.path.join(result_path,first_code+ext))
         elif mode == 'print':
             print(first_code)
+
+@register_feature(description="""根据条码信息分割pdf
+""")
+def split_pdf_on_barcode():
+    # 加载全部为图片
+    fpath = input('请输入pdf文件路径：').strip('\"').strip('\\')
+    with open(fpath, 'rb') as fp:
+        pdfFileObject = fp
+        pdfReader = PyPDF2.PdfFileReader(pdfFileObject, strict=True)
+        pagecount = pdfReader.numPages
+        print("总页数：", pagecount)
+
+        root,file = os.path.split(fpath)
+        #加载全部为
+        print('加载图片中...')
+        temp_dir = os.path.join(root,'temp-asegvarefd')
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        os.mkdir(temp_dir)
+        images = convert_from_path(fpath, dpi=300,output_folder=temp_dir,thread_count=8)
+        pages_data = []
+        for i,im in enumerate(images):
+            print(f'识别第{i+1}页图片条码...')
+            barcodes, texts = _decode_img(im,barcode_mode=True,text_mode=False)
+            pages_data.append((barcodes, texts))
+        print('识别完成。')
+
+        splitter = []
+        max_ = len(pages_data[0][0])
+        for i in range(pagecount):
+            if i == 0:
+                left = right = 0
+                continue
+            i1 = len(pages_data[i-1][0])
+            i2 = len(pages_data[i][0])
+            max_ = max(max_,i2)
+            if (i1 == i2) and (pages_data[i-1][0][i1-1] == pages_data[i][0][i2-1]):
+                right = i
+                if right == pagecount - 1:
+                    splitter.append((left,right))
+            else:
+                if (i2 < max_) and (i1 == i2):
+
+                    right = i
+                else:
+                    splitter.append((left,right))
+                    left = i
+                if right == pagecount - 1:
+                    splitter.append((left,right))
+        _splitter_(splitter,pdfReader,fpath,pages_data)
+    shutil.rmtree(temp_dir)
+
+@register_feature(description="""通过表格分割pdf
+""")
+def split_pdf_on_excel():
+    pdfpath = input('输入pdf路径：').strip('\"')
+    fpath = input('输入excel表格路径（A、B列必须为左右页码，标题为f,t）：').strip('\"')
+    df = pd.read_excel(fpath)
+    df.columns = [c.lower() for c in df.columns]
+    splitter = []
+    for index,row in df.iterrows():
+        splitter.append((int(row['f'])-1,int(row['t'])-1))
+    with open(pdfpath, 'rb') as fp:
+        pdfFileObject = fp
+        pdfReader = PyPDF2.PdfFileReader(pdfFileObject, strict=True)
+        _splitter_(splitter,pdfReader,pdfpath)
 
 def run():
     try:
