@@ -9,6 +9,7 @@ import copy
 import json
 import os
 import shutil
+from PIL.JpegImagePlugin import JpegImageFile
 
 from typing import Any, List, AnyStr
 
@@ -20,6 +21,7 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 import PIL.Image
+from PIL import ImageOps
 
 import pandas as pd
 import requests
@@ -34,6 +36,39 @@ with open(os.path.join(current_path, 'qiniu_auth.json'), 'r', encoding='UTF-8') 
     if not auth_info:
         exit('load auth_info failed.')
 
+
+def resize_im(im: JpegImageFile, size: tuple, fillcolor: tuple)-> JpegImageFile:
+    # 图像处理函数
+    # size[0] is height, size[1] is width
+    (width, height) = size
+
+    required_ratio = height / width
+    im_width, im_height = im.size
+    im_ratio = im_height / im_width
+    # 太高了，需要加宽
+    if im_ratio >= required_ratio:
+        # 原图高度为最大限制
+        resize_width, resize_height = int(height / im_ratio), height
+        source_resized = im.resize((resize_width, resize_height))
+        append_width_l = int((width - resize_width) / 2)
+        append_width_r = width - resize_width - append_width_l
+        # left, top, right, bottom = _border(border)
+        im_dest = ImageOps.expand(
+            source_resized,
+            border=(append_width_l, 0, append_width_r, 0),
+            fill=fillcolor)
+    else:
+        # 原图宽度为最大限制
+        resize_width, resize_height = width, int(width * im_ratio)
+        source_resized = im.resize((resize_width, resize_height))
+        append_height_t = int((height - resize_height) / 2)
+        append_height_b = height - resize_height - append_height_t
+        im_dest = ImageOps.expand(
+            source_resized,
+            border=(0, append_height_t, 0, append_height_b),
+            fill=fillcolor)
+
+    return im_dest
 
 class QnObS():
 
@@ -184,8 +219,12 @@ def generate_url(excel_path,update=True):
         col_names[col[0].value] = get_column_letter(current)
         current += 1
     temp_dir = os.path.join(root_path,'tempimg-'+datetime.strftime(datetime.now(),'%Y%m%d'))
+    temp_cache_dir = os.path.join(root_path,'temp-imgs')
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
+    if not os.path.exists(temp_cache_dir):
+        os.mkdir(temp_cache_dir)
+
     ws.column_dimensions[col_names['img']].width = 13  # img
     filelist = ws[col_names['filepath']]
     filelist_forup = []
@@ -215,11 +254,16 @@ def generate_url(excel_path,update=True):
                         break
             fpath = tempfpath
         filelist_forup.append(fpath)
+        _,temp_name_ = os.path.split(fpath)
         ws.row_dimensions[x + 1].height = 70
         if os.path.exists(fpath):
-            img = Image(fpath)
+            img = PIL.Image.open(fpath)
         else:
-            img = Image(blank_img)
+            img = PIL.Image.open(blank_img)
+        img = resize_im(img,size=(500,500),fillcolor=(255,255,255))
+        temp_im_path = os.path.join(temp_cache_dir,temp_name_)
+        img.save(temp_im_path)
+        img = Image(temp_im_path)
         width = img.width
         height = img.height
         if width >= height:
@@ -243,7 +287,7 @@ def generate_url(excel_path,update=True):
             result, url = qos.localfile_to_url(root=root, fpath=fpath)
             if result:
                 url_list[x].value = 'http://' + url
-    # shutil.rmtree(temp_dir)
+    shutil.rmtree(temp_cache_dir)
     wb.save(excel_path)
 
 
