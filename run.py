@@ -64,8 +64,8 @@ def filetype_corrector():
 @register_feature(description="""用来批量重命名文件的
 """)
 def item_renamer():
-    from features.item_renamer import run
-    run()
+    from features.item_renamer import irenamer
+    irenamer()
 
 @register_feature(description="""用来处理标题大写的（beta）
 """)
@@ -84,6 +84,13 @@ def qiniu_pic_url():
 def barcodetag():
     from features.barcode_analysis import run
     run()
+
+
+@register_feature(description="""excel插入图片
+""")
+def pic_into_excel():
+    from features.pic_to_excel import pic_to_excel
+    pic_to_excel()
 
 if __name__ == '__main__':
     try:

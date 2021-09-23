@@ -5,7 +5,7 @@ import argparse
 # 生成文件夹列表
 def gen_item_list(root_path,type):
     itemx_list = os.listdir(root_path)
-    item_list = []
+    item_path_list = []
     item_name_list = []
     judge = None
     if type == "folder":
@@ -18,28 +18,28 @@ def gen_item_list(root_path,type):
     for i in itemx_list:
         subpath = os.path.join(root_path, i)
         if judge(subpath):
-            item_list.append(subpath)
+            item_path_list.append(subpath)
             item_name_list.append(i)
         else:
             pass
 
-    return item_list,item_name_list
+    return item_path_list,item_name_list
 
 
 def rename_item_name(root_path:str, task:list):
     previous = task[0]
-    after = task[1]
-    
-    previous_path = os.path.join(root_path,previous)
-    after_path = os.path.join(root_path, after)
-    try:
-        os.rename(previous_path,after_path)
-        print(f'{previous} is successfully renamed.')
-    except:
-        print('failed renaming.')
+    after = task[1] if len(task)>1 else None
+    if after:
+        previous_path = os.path.join(root_path, previous)
+        after_path = os.path.join(root_path, after)
+        try:
+            os.rename(previous_path,after_path)
+            print(f'{previous} is successfully renamed.')
+        except:
+            print('failed renaming.')
 
 
-def run():
+def irenamer(type=None,root_path=None):
     arg_mode = False
     if arg_mode:
         parser = argparse.ArgumentParser()
@@ -50,12 +50,13 @@ def run():
     else:
         available_type:set = {'folder','file'}
         while True:
-            type = input("选择类型(folder or file)： ") or 'folder'
+            if not type:
+                type = input("选择类型(folder or file)： ") or 'folder'
             if type in available_type:
                 break
             else:
                 print("不支持的类型")
-    root_path = input('输入需要重命名的文件夹：').strip()
+    root_path = input('输入需要重命名的文件夹：').strip() if not root_path else root_path
     item_list,item_name_list = gen_item_list(root_path=root_path,type=type)
     # print(item_name_list)
     with open(os.path.join(root_path,'rename.csv'),'w',encoding='UTF-8-sig',newline='') as f:

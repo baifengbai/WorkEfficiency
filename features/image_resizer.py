@@ -11,6 +11,7 @@ import shutil
 from PIL import Image, ImageOps
 from PIL.JpegImagePlugin import JpegImageFile
 
+from features.filetype_corrector import filetype_correct
 
 # 图像处理函数
 def resize(im: JpegImageFile, size: tuple, fillcolor: tuple) -> JpegImageFile:
@@ -129,6 +130,7 @@ def prepare_path(temp_root_path):
 
 def run():
     root_path = input('请输入需要处理的文件夹：').strip('\"').strip()
+    filetype_correct(root_path)
     root_path = root_path.rstrip('\\').rstrip('/')
     # 开始处理
     print('开始处理图片...')

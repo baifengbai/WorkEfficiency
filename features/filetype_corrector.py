@@ -2,7 +2,7 @@ import os
 import filetype
 
 
-def filetype_correct(path):
+def filetype_correct(path,limit:list=None):
     result = os.walk(path)
     for root, dirs, files in result:
         for f in files:
@@ -10,6 +10,9 @@ def filetype_correct(path):
             fpath = os.path.join(root, f)
             fname, default_ext = os.path.splitext(f)
             default_ext = default_ext.strip('.')
+            if limit:
+                if default_ext not in limit:
+                    continue
             kind = filetype.guess(fpath)
             try:
                 true_ext = kind.extension

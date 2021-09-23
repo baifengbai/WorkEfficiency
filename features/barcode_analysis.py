@@ -1,6 +1,4 @@
-import os
 import shutil
-import tempfile
 import traceback
 import typing
 
@@ -50,6 +48,7 @@ def show_description():
         print(f'{n}: {k}')
         print(features_description[k])
 
+
 @register_feature(description="""用于显示所有的功能
 """)
 def show_features():
@@ -58,6 +57,7 @@ def show_features():
         features_id[n] = k
         print(f'{n}: {k}', end=' ')
         print(f"({features_description[k].splitlines()[0]})")
+
 
 # -------------------------------------------------------------------
 
@@ -71,7 +71,8 @@ def _read_text_pdf():
         pageObject = pdfReader.getPage(0)
         return pageObject.extractText()
 
-def _decode_img(img: PIL.Image,barcode_mode=True,text_mode=True):
+
+def _decode_img(img: PIL.Image, barcode_mode=True, text_mode=True):
     if barcode_mode:
         detectedBarcodes = decode(img)
         # If not detected then print the message
@@ -107,12 +108,22 @@ def _decode_img(img: PIL.Image,barcode_mode=True,text_mode=True):
         text = ''
     return barcode_, text
 
+
 # 对图片进行分析，获得条码数据和文字数据
-def _read_bartag(fpath) -> (list,list):
+def _read_bartag(fpath, first_page=None, last_page=None, barcode_mode=True, text_mode=True, tempdir=None) -> (
+        list, list):
     kind = filetype.guess(fpath)
     img = typing.Any
     if kind.extension == "pdf":
-        images_from_path = convert_from_path(fpath, dpi=600)
+        images_from_path = convert_from_path(
+            fpath,
+            first_page=first_page,
+            last_page=last_page,
+            output_folder=tempdir,
+            thread_count=8,
+            dpi=600
+        )
+
         for im in images_from_path:
             img = im
             break
@@ -120,7 +131,8 @@ def _read_bartag(fpath) -> (list,list):
         img = PIL.Image.open(fpath)
     else:
         exit('Unsupported file type. ')
-    return _decode_img(img)
+    return _decode_img(img, barcode_mode, text_mode)
+
 
 def _splitter_(splitter: list, pdfReader: PyPDF2.PdfFileReader, fpath, pages_data=None):
     root, fname = os.path.split(fpath)
@@ -135,11 +147,12 @@ def _splitter_(splitter: list, pdfReader: PyPDF2.PdfFileReader, fpath, pages_dat
             prefix = fname
         else:
             lenx = len(pages_data[spl[0]][0])
-            prefix = pages_data[spl[0]][0][lenx-1]
-        output_file = f"{prefix}-{count}-{spl[1] + 1 - spl[0]}-pages.pdf"
+            prefix = pages_data[spl[0]][0][lenx - 1]
+        output_file = f"{count}-{prefix}-{spl[1] + 1 - spl[0]}-pages.pdf"
         with open(os.path.join(root, output_file), 'wb') as outfp:
             pdf_writer.write(outfp)
         print(f'分割文件：{output_file}')
+
 
 @register_feature(description="""将pdf保存为图片
 """)
@@ -161,27 +174,51 @@ def pdf_save2img():
         shutil.rmtree(temp_dir)
     os.mkdir(temp_dir)
     for f in file_list:
-        images_from_path = convert_from_path(os.path.join(f_path, f),output_folder=temp_dir, dpi=600,thread_count=8)
+        images_from_path = convert_from_path(os.path.join(f_path, f), output_folder=temp_dir, dpi=600, thread_count=8)
         name, extension = os.path.splitext(f)
-        for i,im in enumerate(images_from_path):
+        for i, im in enumerate(images_from_path):
             im.save(os.path.join(result_path, name + f"-{i}.jpg"))
         n += 1
         print(f"finished {n} in {cot}.")
     shutil.rmtree(temp_dir)
 
+
 # excel 添加条码
 @register_feature(description="""为excel表格添加条码图片
 """)
 def tag_to_excel():
-    save_fpath = input("请输入文件路径：").strip('\"')
+    def find_code_res(code_, filelist):
+        lenfl = len(filelist)
+        for i in range(lenfl):
+            _, ext = os.path.splitext(filelist[i][0])
+            # print(filelist[i][1][0])
+            # if (code_ in filelist[i][0]) and (ext.lower() in ['.jpeg','.jpg','.png','.gif','.webp','.pdf']):
+            if (filelist[i][1][0].endswith(code_)) and (
+                    ext.lower() in ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.pdf']):
+                return filelist[i][0]
+            else:
+                continue
+        return None
+
+    save_fpath = input("请输入表格文件路径（含有code,tag列）：").strip('\"')
     resource_path = input('请输入素材文件夹(支持图片和单页pdf)：').strip('\"')
     res_filelist = os.listdir(resource_path)
     res_filelist_ = []
+    temp_dir = os.path.join(resource_path, 'temp-asgdafewa')
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    os.mkdir(temp_dir)
+
+    print('分析文件')
     for res in res_filelist:
-        if os.path.isfile(os.path.join(resource_path,res)):
-            res_filelist_.append(os.path.join(resource_path,res))
+        if os.path.isfile(os.path.join(resource_path, res)):
+            _, ext = os.path.splitext(res)
+            if ext.lower() in ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.pdf']:
+                tempf = os.path.join(resource_path, res)
+                barcode, text_ = _read_bartag(tempf,first_page=1,last_page=1, barcode_mode=True, text_mode=False, tempdir=temp_dir)
+                res_filelist_.append((tempf, barcode, text_))
     res_filelist = res_filelist_.copy()
-    lenres = len(res_filelist)
+
     wb = load_workbook(save_fpath)
     ws = wb.active
     # ws['A1'].value = "code"
@@ -214,33 +251,21 @@ def tag_to_excel():
     code_list = ws[col_names['code']]
     lencode = len(code_list)
 
-    def find_code_res(code_, filelist,lenfl):
-        for i in range(lenfl):
-            _, ext = os.path.splitext(filelist[i])
-            if (code_ in filelist[i]) and (ext.lower() in ['.jpeg','.jpg','.png','.gif','.webp','.pdf']):
-                return filelist[i]
-            else:
-                continue
-        return None
-
+    print('开始添加图片')
     for x in range(1, lencode):
         img = None
         code = code_list[x].value
-        target = find_code_res(code,res_filelist,lenres)
+        target = find_code_res(code, res_filelist)
         if not target:
             continue
         else:
-            _,ext = os.path.splitext(target)
+            _, ext = os.path.splitext(target)
             if ext.lower() == '.pdf':
-                temp_dir = os.path.join(resource_path,'temp-asgdafewa')
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
-                os.mkdir(temp_dir)
-                images_from_path = convert_from_path(target, dpi=600,output_folder=temp_dir,thread_count=8)
+                images_from_path = convert_from_path(target,first_page=1,last_page=1, dpi=600, output_folder=temp_dir, thread_count=8)
                 for im in images_from_path:
                     img = Image(im)
                     break
-            elif ext.lower() in ['.jpeg','.jpg','.png','.gif','.webp']:
+            elif ext.lower() in ['.jpeg', '.jpg', '.png', '.gif', '.webp']:
                 img = Image(target)
             else:
                 continue
@@ -254,11 +279,12 @@ def tag_to_excel():
             ws.add_image(img)
     wb.save(save_fpath)
 
+
 # 验证fnsku与sku对应关系
 @register_feature(description="""验证两组code对应关系匹配
 """)
 def fba_verify_barcode():
-    vfilepath = input('请输入验证表格文件路径 (必须含有sku和fnsku) ：').strip('\"') # 必须含有sku和fnsku
+    vfilepath = input('请输入验证表格文件路径 (必须含有sku和fnsku) ：').strip('\"')  # 必须含有sku和fnsku
     bardirpath = input('请输入条码文件夹路径：').strip('\"')
     vdf = pd.read_excel(vfilepath)
     vdf.columns = vdf.columns.str.lower()
@@ -268,11 +294,11 @@ def fba_verify_barcode():
     count = 0
     lenf = len(bar_list_full)
 
-    def _x(b,i,lenf):
-        print(f'\r识别第{i}/{lenf}个文件.',end='')
+    def _x(b, i, lenf):
+        print(f'\r识别第{i}/{lenf}个文件.', end='')
         return _read_bartag(b)
 
-    bar_data = [_x(b,n+1, lenf) for n,b in enumerate(bar_list_full)]
+    bar_data = [_x(b, n + 1, lenf) for n, b in enumerate(bar_list_full)]
     print('\n开始数据验证...')
     flag = True
     for i in range(len(bar_list_full)):
@@ -283,21 +309,22 @@ def fba_verify_barcode():
             name, ext = os.path.splitext(bar_list[i])
             print(f'数据不匹配: {bar_list[i]}')
             if flag:
-                os.mkdir(os.path.join(bardirpath,'unmatch'))
-            os.rename(bar_list_full[i], os.path.join(bardirpath,'unmatch',name + ext))
+                os.mkdir(os.path.join(bardirpath, 'unmatch'))
+            os.rename(bar_list_full[i], os.path.join(bardirpath, 'unmatch', name + ext))
             flag = False
     if flag:
         print('所有条码数据正确。')
     else:
         print('错误条码已标注，请修正。')
 
-#barcode renamer,文件名修改为条码数据,for pdf and jpg
+
+# barcode renamer,文件名修改为条码数据,for pdf and jpg
 @register_feature(description="""文件名修改为条码数据
 """)
 def read_barcode():
     while True:
         mode = input('选择模式(print or rename)：')
-        if mode not in ['print','rename']:
+        if mode not in ['print', 'rename']:
             exit(f'模式不支持：{mode}')
         else:
             break
@@ -306,8 +333,8 @@ def read_barcode():
     fl = os.listdir(path)
     fl_tmp = []
     for f in fl:
-        f_ = os.path.join(path,f)
-        if os.path.isfile(f_) and filetype.guess(f_).extension in ['pdf','jpg','png']:
+        f_ = os.path.join(path, f)
+        if os.path.isfile(f_) and filetype.guess(f_).extension in ['pdf', 'jpg', 'png']:
             fl_tmp.append(f)
     fl = fl_tmp.copy()
     result_path = os.path.join(path, 'result')
@@ -316,15 +343,16 @@ def read_barcode():
             shutil.rmtree(result_path)
         os.mkdir(result_path)
     for f in fl:
-        f_name = os.path.join(path,f)
-        bc,s = _read_bartag(f_name)
-        name,ext = os.path.splitext(f)
+        f_name = os.path.join(path, f)
+        bc, s = _read_bartag(f_name)
+        name, ext = os.path.splitext(f)
         first_code = bc[0]
         if mode == 'rename':
             print(first_code)
-            shutil.copyfile(f_name,os.path.join(result_path,first_code+ext))
+            shutil.copyfile(f_name, os.path.join(result_path, first_code + ext))
         elif mode == 'print':
             print(first_code)
+
 
 @register_feature(description="""根据条码信息分割pdf
 """)
@@ -337,18 +365,18 @@ def split_pdf_on_barcode():
         pagecount = pdfReader.numPages
         print("总页数：", pagecount)
 
-        root,file = os.path.split(fpath)
-        #加载全部为
+        root, file = os.path.split(fpath)
+        # 加载全部为
         print('加载图片中...')
-        temp_dir = os.path.join(root,'temp-asegvarefd')
+        temp_dir = os.path.join(root, 'temp-asegvarefd')
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         os.mkdir(temp_dir)
-        images = convert_from_path(fpath, dpi=300,output_folder=temp_dir,thread_count=8)
+        images = convert_from_path(fpath, dpi=300, output_folder=temp_dir, thread_count=8)
         pages_data = []
-        for i,im in enumerate(images):
-            print(f'识别第{i+1}页图片条码...')
-            barcodes, texts = _decode_img(im,barcode_mode=True,text_mode=False)
+        for i, im in enumerate(images):
+            print(f'识别第{i + 1}页图片条码...')
+            barcodes, texts = _decode_img(im, barcode_mode=True, text_mode=False)
             pages_data.append((barcodes, texts))
         print('识别完成。')
 
@@ -358,24 +386,25 @@ def split_pdf_on_barcode():
             if i == 0:
                 left = right = 0
                 continue
-            i1 = len(pages_data[i-1][0])
+            i1 = len(pages_data[i - 1][0])
             i2 = len(pages_data[i][0])
-            max_ = max(max_,i2)
-            if (i1 == i2) and (pages_data[i-1][0][i1-1] == pages_data[i][0][i2-1]):
+            max_ = max(max_, i2)
+            if (i1 == i2) and (pages_data[i - 1][0][i1 - 1] == pages_data[i][0][i2 - 1]):
                 right = i
                 if right == pagecount - 1:
-                    splitter.append((left,right))
+                    splitter.append((left, right))
             else:
                 if (i2 < max_) and (i1 == i2):
 
                     right = i
                 else:
-                    splitter.append((left,right))
+                    splitter.append((left, right))
                     left = i
                 if right == pagecount - 1:
-                    splitter.append((left,right))
-        _splitter_(splitter,pdfReader,fpath,pages_data)
+                    splitter.append((left, right))
+        _splitter_(splitter, pdfReader, fpath, pages_data)
     shutil.rmtree(temp_dir)
+
 
 @register_feature(description="""通过表格分割pdf
 """)
@@ -385,12 +414,13 @@ def split_pdf_on_excel():
     df = pd.read_excel(fpath)
     df.columns = [c.lower() for c in df.columns]
     splitter = []
-    for index,row in df.iterrows():
-        splitter.append((int(row['f'])-1,int(row['t'])-1))
+    for index, row in df.iterrows():
+        splitter.append((int(row['f']) - 1, int(row['t']) - 1))
     with open(pdfpath, 'rb') as fp:
         pdfFileObject = fp
         pdfReader = PyPDF2.PdfFileReader(pdfFileObject, strict=True)
-        _splitter_(splitter,pdfReader,pdfpath)
+        _splitter_(splitter, pdfReader, pdfpath)
+
 
 def run():
     try:
@@ -405,6 +435,7 @@ def run():
     except Exception as err:
         print(err)
         traceback.print_exc()
+
 
 if __name__ == '__main__':
     run()
