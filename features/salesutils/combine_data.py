@@ -35,12 +35,10 @@ def ret_dataframe(fpath,sku_list,fdate_list):
     df = pd.read_csv(fpath,encoding='UTF-8',skiprows=7,decimal=decimal_)
     df.columns = columns
     # df = df.apply(lambda x: x.str.replace(',', '.'))
-    df = df.drop(['tax collection model'], axis=1)
-    df = df.drop(['marketplace withheld tax'], axis=1)
     # df.loc[:, 'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'])
 
     if site in eu_sites:
-        df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(0.85, axis=1)
+        df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(0.85, axis=1).round(2)
         print(f'站点为：{site}, 实行货币单位换算。')
         for index,row in df.iterrows():
             for fdate in fdate_list:
@@ -60,8 +58,8 @@ def ret_dataframe(fpath,sku_list,fdate_list):
 
 # main def
 def read_fileset():
-    time_start = datetime.datetime.now()
     folder_path = input('请输入目录路径: ').strip('\"').strip()
+    time_start = datetime.datetime.now()
     result = os.walk(folder_path)
     result2 = []
     sku_proj = None
@@ -76,7 +74,7 @@ def read_fileset():
             if flag_sku and (file == 'SKU-PROJECT.xlsx'):
                 sku_proj = os.path.join(path,file)
                 flag_sku = False
-            if flag_fdate and (file == 'Date-FORMAT.xlsx'):
+            if flag_fdate and (file == 'DATE-FORMAT.xlsx'):
                 fdate_path = os.path.join(path,file)
                 flag_fdate = False
     df = pd.DataFrame(columns=columns)
@@ -92,6 +90,8 @@ def read_fileset():
         df_temp = ret_dataframe(filepath,sku_list,fdate_list)
         df = df.append(df_temp,ignore_index=True)
         # print(df)
+    df = df.drop(['tax collection model'], axis=1)
+    df = df.drop(['marketplace withheld tax'], axis=1)
     save_path = os.path.join(folder_path,'店铺订单数据汇总.xlsx')
     df.to_excel(save_path,engine='openpyxl')
 
