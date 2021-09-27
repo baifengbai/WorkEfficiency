@@ -186,8 +186,13 @@ def pdf_save2img():
 # excel 添加条码
 @register_feature(description="""为excel表格添加条码图片
 """)
-def tag_to_excel():
+def tag_to_excel(mode=None):
+    mode = input('选择匹配模式（code，filename）：') or 'filename'
+    if mode not in ['code','filename']:
+        exit('无法识别的模式')
+
     def find_code_res(code_, filelist):
+        # return file path
         lenfl = len(filelist)
         for i in range(lenfl):
             _, ext = os.path.splitext(filelist[i][0])
@@ -200,8 +205,8 @@ def tag_to_excel():
                 continue
         return None
 
-    save_fpath = input("请输入表格文件路径（含有code,tag列）：").strip('\"')
-    resource_path = input('请输入素材文件夹(支持图片和单页pdf)：').strip('\"')
+    excel_fpath = input("请输入表格文件路径（含有code,tag列）：").strip('\"')
+    resource_path = input('请输入素材文件夹(支持图片和单页pdf)：').strip('\"') or os.path.dirname(excel_fpath)
     res_filelist = os.listdir(resource_path)
     res_filelist_ = []
     temp_dir = os.path.join(resource_path, 'temp-asgdafewa')
@@ -212,14 +217,17 @@ def tag_to_excel():
     print('分析文件')
     for res in res_filelist:
         if os.path.isfile(os.path.join(resource_path, res)):
-            _, ext = os.path.splitext(res)
+            filename, ext = os.path.splitext(res)
             if ext.lower() in ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.pdf']:
                 tempf = os.path.join(resource_path, res)
-                barcode, text_ = _read_bartag(tempf,first_page=1,last_page=1, barcode_mode=True, text_mode=False, tempdir=temp_dir)
+                if mode == 'code':
+                    barcode, text_ = _read_bartag(tempf,first_page=1,last_page=1, barcode_mode=True, text_mode=False, tempdir=temp_dir)
+                else:
+                    barcode, text_ = [filename], ['']
                 res_filelist_.append((tempf, barcode, text_))
     res_filelist = res_filelist_.copy()
 
-    wb = load_workbook(save_fpath)
+    wb = load_workbook(excel_fpath)
     ws = wb.active
     # ws['A1'].value = "code"
     # ws['A1'].alignment = Alignment(horizontal='center')
@@ -277,7 +285,7 @@ def tag_to_excel():
             img.anchor = f'B{x + 1}'
             print(f'添加图片：{code}')
             ws.add_image(img)
-    wb.save(save_fpath)
+    wb.save(excel_fpath)
 
 
 # 验证fnsku与sku对应关系

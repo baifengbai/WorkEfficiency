@@ -92,6 +92,13 @@ def pic_into_excel():
     from features.pic_to_excel import pic_to_excel
     pic_to_excel()
 
+@register_feature(description="""汇总transaction数据
+""")
+def combine_transaction():
+    from features.salesutils.combine_data import read_fileset
+    read_fileset()
+
+
 if __name__ == '__main__':
     try:
         show_features()
