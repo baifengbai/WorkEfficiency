@@ -38,7 +38,7 @@ def ret_dataframe(fpath,sku_list,fdate_list):
     # df.loc[:, 'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'])
 
     if site in eu_sites:
-        df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(0.85, axis=1).round(2)
+        df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(7.5/8.5, axis=1)
         print(f'站点为：{site}, 实行货币单位换算。')
         for index,row in df.iterrows():
             for fdate in fdate_list:
