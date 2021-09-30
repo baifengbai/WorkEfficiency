@@ -22,7 +22,7 @@ columns = ['date/time', 'settlement id', 'type', 'order id', 'sku', 'description
            'promotional rebates tax', 'marketplace withheld tax', 'selling fees',
            'fba fees', 'other transaction fees', 'other', 'total']
 
-def ret_dataframe(fpath,sku_list,fdate_list):
+def ret_dataframe(fpath,sku_list,fdate_list,subs_list):
     dirpath, fp = os.path.split(fpath)
     filename, ext = os.path.splitext(fp)
     site = filename[-2:]
@@ -46,6 +46,10 @@ def ret_dataframe(fpath,sku_list,fdate_list):
                 if slice[1].lower() in fdate:
                     df.loc[index,'date/time'] = df.loc[index,'date/time'].replace(slice[1].lower(),fdate[0])
                     break
+            for subs in subs_list:
+                if row['type'] in subs:
+                    df.loc[index,'type'] = df.loc[index,'type'].replace(row['type'],subs[0])
+
     df['date/time'] = pd.to_datetime(df['date/time'])
     # Remove timezone from columns
     df['date/time'] = df['date/time'].dt.tz_localize(None)
@@ -64,8 +68,10 @@ def read_fileset():
     result2 = []
     sku_proj = None
     fdate_path = None
+    subs_path = None
     flag_sku = True
     flag_fdate = True
+    flag_subs = True
     for path,dirs,files in result:
         for file in files:
             _,ext = os.path.splitext(file)
@@ -77,6 +83,9 @@ def read_fileset():
             if flag_fdate and (file == 'DATE-FORMAT.xlsx'):
                 fdate_path = os.path.join(path,file)
                 flag_fdate = False
+            if flag_subs and (file == 'TYPE-MATCH.xlsx'):
+                subs_path = os.path.join(path,file)
+                flag_subs = False
     df = pd.DataFrame(columns=columns)
     print('载入SKU项目对应表。')
     sku_df = pd.read_excel(sku_proj)
@@ -85,9 +94,13 @@ def read_fileset():
     fdate_df = pd.read_excel(fdate_path)
     fdate_list = [fdate_df[c].tolist() for c in fdate_df.columns]
 
+    print('载入类型对应表。')
+    subs_df = pd.read_excel(subs_path)
+    subs_list = [subs_df[c].tolist() for c in subs_df.columns]
+
     for path,file in result2:
         filepath = os.path.join(path,file)
-        df_temp = ret_dataframe(filepath,sku_list,fdate_list)
+        df_temp = ret_dataframe(filepath,sku_list,fdate_list,subs_list)
         df = df.append(df_temp,ignore_index=True)
         # print(df)
     df = df.drop(['tax collection model'], axis=1)
