@@ -48,6 +48,7 @@ def ret_dataframe(fpath,sku_list,fdate_list,subs_list):
             for subs in subs_list:
                 if row['type'] in subs:
                     df.loc[index,'type'] = df.loc[index,'type'].replace(row['type'],subs[0])
+                    break
 
     df['date/time'] = pd.to_datetime(df['date/time'])
     # Remove timezone from columns
