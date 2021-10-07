@@ -10,7 +10,6 @@ import datetime
 import os
 import pandas as pd
 from openpyxl import load_workbook
-from openpyxl.drawing.image import Image
 from openpyxl.styles import Font, Alignment, NamedStyle
 from openpyxl.utils import get_column_letter
 
