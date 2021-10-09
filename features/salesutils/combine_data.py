@@ -8,6 +8,7 @@
 import copy
 import datetime
 import os
+import re
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, NamedStyle
@@ -37,9 +38,19 @@ def ret_dataframe(fpath,sku_list,fdate_list,subs_list):
     # df.loc[:, 'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'])
 
     if site in eu_sites:
+        df2 = df.loc[:,'product sales':'total']
+        for key in df2.columns:
+            df[key] = pd.to_numeric(df[key],errors='coerce')
+        # df.loc[:'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'],errors='coerce')
         df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(7.5/8.5, axis=1)
         print(f'站点为：{site}, 实行货币单位换算。')
         for index,row in df.iterrows():
+            if '.' in row['date/time']:
+                # change date
+                clist = re.findall('([0-9]+)\.([0-9]+)\.(.+)', row['date/time'])
+                if len(clist) > 0 and len(clist[0]) == 3:
+                    clist_ = '/'.join([clist[0][1], clist[0][0], clist[0][2]])
+                    df.loc[index, 'date/time'] = clist_
             for fdate in fdate_list:
                 slice = row['date/time'].split(' ')
                 if slice[1].lower() in fdate:
@@ -106,6 +117,10 @@ def read_fileset():
     df = df.drop(['tax collection model'], axis=1)
     df = df.drop(['marketplace withheld tax'], axis=1)
     save_path = os.path.join(folder_path,'店铺订单数据汇总.xlsx')
+
+    # escape unicode character
+    df = df.applymap(lambda x: x.encode('unicode_escape').
+                                   decode('utf-8') if isinstance(x, str) else x)
     df.to_excel(save_path,engine='openpyxl')
 
     print('处理汇总文件。')
