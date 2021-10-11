@@ -7,8 +7,11 @@
 # @Description:
 import copy
 import datetime
+import io
 import os
 import re
+import time
+
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, NamedStyle
@@ -25,21 +28,29 @@ columns = ['date/time', 'settlement id', 'type', 'order id', 'sku', 'description
 def ret_dataframe(fpath,sku_list,fdate_list,subs_list):
     dirpath, fp = os.path.split(fpath)
     filename, ext = os.path.splitext(fp)
+    nowtime = time.time()
+    temp_dir = 'temp'+str(nowtime)
+    # os.mkdir(temp_dir)
     site = filename[-2:]
     eu_sites = ['nl','fr','de','es','it']
     print(f'载入: {fpath}')
     if site in eu_sites:
         decimal_ = ','
+        thousands_ = '.'
     else:
         decimal_ = '.'
-    df = pd.read_csv(fpath,encoding='UTF-8',skiprows=7,decimal=decimal_)
+        thousands_ = ','
+    # 解决错误字符的问题
+    with open(fpath,'r',encoding="UTF-8") as fp:
+        content = fp.read()
+        content = content.encode().replace(b'\xe2\x80\xaf',b'').decode('utf-8')
+    df = pd.read_csv(io.StringIO(content),encoding='UTF-8',skiprows=7,decimal=decimal_,thousands=thousands_)
     df.columns = columns
     # df = df.apply(lambda x: x.str.replace(',', '.'))
     # df.loc[:, 'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'])
 
     if site in eu_sites:
-        df2 = df.loc[:,'product sales':'total']
-        for key in df2.columns:
+        for key in df.loc[:,'product sales':'total'].columns:
             df[key] = pd.to_numeric(df[key],errors='coerce')
         # df.loc[:'product sales':'total'] = pd.to_numeric(df.loc[:, 'product sales':'total'],errors='coerce')
         df.loc[:, 'product sales':'total'] = df.loc[:, 'product sales':'total'].mul(7.5/8.5, axis=1)
@@ -119,8 +130,8 @@ def read_fileset():
     save_path = os.path.join(folder_path,'店铺订单数据汇总.xlsx')
 
     # escape unicode character
-    df = df.applymap(lambda x: x.encode('unicode_escape').
-                                   decode('utf-8') if isinstance(x, str) else x)
+    # df = df.applymap(lambda x: x.encode('unicode_escape').
+    #                                decode('utf-8') if isinstance(x, str) else x)
     df.to_excel(save_path,engine='openpyxl')
 
     print('处理汇总文件。')
