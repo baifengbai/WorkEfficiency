@@ -31,9 +31,6 @@ near
 next
 of
 on
-opposite
-out
-outside
 over
 per
 plus
@@ -47,7 +44,6 @@ toward
 under
 unlike
 until
-up
 upper
 via
 with

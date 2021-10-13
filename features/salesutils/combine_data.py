@@ -86,6 +86,7 @@ def ret_dataframe(fpath,sku_list,fdate_list,subs_list):
 def read_fileset():
     folder_path = input('请输入目录路径: ').strip('\"').strip()
     time_start = datetime.datetime.now()
+    timestamp = time.time()
     result = os.walk(folder_path)
     result2 = []
     sku_proj = None
@@ -127,7 +128,7 @@ def read_fileset():
         # print(df)
     df = df.drop(['tax collection model'], axis=1)
     df = df.drop(['marketplace withheld tax'], axis=1)
-    save_path = os.path.join(folder_path,'店铺订单数据汇总.xlsx')
+    save_path = os.path.join(folder_path,f'店铺订单数据汇总-{str(timestamp)}.xlsx')
 
     # escape unicode character
     # df = df.applymap(lambda x: x.encode('unicode_escape').
