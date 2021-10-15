@@ -19,6 +19,7 @@ differenza
 dopo
 durante
 e
+ed
 eccetto
 eccezione
 fino

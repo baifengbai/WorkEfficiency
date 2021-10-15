@@ -2,6 +2,7 @@ import os
 import shutil
 import filetype
 import PIL.Image
+import pandas as pd
 from PIL import ImageOps
 from PIL.JpegImagePlugin import JpegImageFile
 
@@ -47,21 +48,31 @@ def resize_im(im: JpegImageFile, size: tuple, fillcolor: tuple)-> JpegImageFile:
 
 
 def pic_to_excel():
-
-    # excel path
-    excel_path = input('输入excel文件路径：').strip('\"').strip()
     # pic resource path
     # default
-    res_path = input('输入图片资源文件夹路径：').strip('\"').strip() or os.path.dirname(excel_path)
+    res_path = input('输入图片资源文件夹路径：').strip('\"').strip()
+
+    # excel path
+    excel_path = input('输入excel文件路径：').strip('\"').strip() or os.path.join(res_path,'file_pic_temp.xlsx')
+
     filetype_correct(res_path,limit=['jpg','png','jpeg'])
 
     resfile_list = os.listdir(res_path)
     resfile_list_ = []
+    resfile_list_2 = []
     for res in resfile_list:
         filename_, ext_ = os.path.splitext(res)
         if ext_.lower() in ['.jpeg', '.jpg', '.png']:
             resfile_list_.append((res_path,filename_,ext_))
+            resfile_list_2.append(res)
     resfile_list = resfile_list_.copy()
+
+    if os.path.exists(excel_path):
+        os.remove(excel_path)
+    df = pd.DataFrame(columns=['fn', 'im'])
+    df['fn']= resfile_list_2
+    df.to_excel(excel_path)
+
 
     # open excel
     wb = load_workbook(excel_path)
@@ -106,11 +117,13 @@ def pic_to_excel():
         os.mkdir(os.path.join(res_path,temppic))
     for x in range(1, lencode):
         filename = sheetfile_list[x].value
+        # print(filename)
+        # print(resfile_list)
         if not filename:
             continue
         index_ = None
         for i, file in enumerate(resfile_list):
-            if file[1] == filename:
+            if file[1] == os.path.splitext(filename)[0]:
                 index_ = i
                 break
         if index_ is not None:
@@ -125,7 +138,7 @@ def pic_to_excel():
             im.width =col_width * 7.3
             im.height = im.width / width * height
             ws.row_dimensions[x + 1].height = col_width * height / width * 6
-            im.anchor = f'B{x + 1}'
+            im.anchor = f'{col_names["im"]}{x + 1}'
             print(f'添加图片：{filename}')
             ws.add_image(im)
     wb.save(excel_path)
